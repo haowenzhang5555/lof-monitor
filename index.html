@@ -336,7 +336,7 @@
         </div>
     </div>
 
-    <div class="footer">数据来源：东方财富 · 新浪财经 · 天天基金 · v1.2.0</div>
+    <div class="footer">数据来源：东方财富 · 新浪财经 · 天天基金 · v1.2.1</div>
     <div class="toast" id="toast"></div>
 
     <div class="modal-overlay" id="modalOverlay">
@@ -494,6 +494,7 @@
         async function load(type = 'lof', keyword = '') {
             if (keyword) {
                 fundData = await fetchData('all', keyword);
+                allFundData = fundData; // 搜索时同步更新 allFundData，否则 render() 读取不到
             } else {
                 if (type === 'all') {
                     allFundData = await fetchData('all');
