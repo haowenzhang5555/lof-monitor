@@ -451,17 +451,19 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 .btn-refresh{background:rgba(255,255,255,.22);color:#fff;padding:0 10px;}
 .btn-auto{background:#4caf50;color:#fff;padding:0 8px;font-size:11px;border-radius:16px;}
 .btn-auto.on{background:#ff9800;}
-.refresh-select{height:32px;padding:0 8px;border:none;border-radius:10px;font-size:11px;background:rgba(255,255,255,.9);color:#333;outline:none;}
-.search-results-wrap{background:#fff;border-bottom:1px solid #e8e8e8;padding:4px;}
-.search-results-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#e3f2fd;border-radius:8px;margin-bottom:4px;}
-.search-results-header span:first-child{color:#1976d2;font-size:12px;font-weight:600;}
-.search-results-header .clear-search{color:#2196f3;font-size:11px;text-decoration:underline;cursor:pointer;}
-.search-results-content{display:flex;flex-wrap:wrap;gap:4px;}
-.search-result-item{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#f5f9ff;border:1px solid #bbdefb;border-radius:8px;cursor:pointer;transition:background .15s;}
-.search-result-item:active{background:#e3f2fd;}
-.search-result-item .s-code{font-size:11px;color:#1976d2;font-weight:600;font-family:monospace;}
-.search-result-item .s-name{font-size:12px;color:#333;}
-.search-result-item .s-add{font-size:10px;color:#4caf50;padding:2px 6px;background:rgba(76,175,80,.1);border-radius:4px;margin-left:4px;}
+.refresh-select{height:32px;padding:0 6px;border:none;border-radius:10px;font-size:10px;background:rgba(255,255,255,.9);color:#333;outline:none;min-width:70px;}
+.search-results-wrap{background:#fff;border-bottom:2px solid #1976d2;padding:6px;box-shadow:0 2px 8px rgba(25,118,210,.15);}
+.search-results-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(135deg,#1976d2,#42a5f5);border-radius:8px;margin-bottom:8px;}
+.search-results-header span:first-child{color:#fff;font-size:13px;font-weight:600;}
+.search-results-header .clear-search{color:rgba(255,255,255,.9);font-size:11px;text-decoration:underline;cursor:pointer;padding:2px 6px;border-radius:4px;}
+.search-results-header .clear-search:active{background:rgba(255,255,255,.2);}
+.search-results-content{display:flex;flex-wrap:wrap;gap:6px;}
+.search-result-item{display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(135deg,#f5f9ff,#e3f2fd);border:1px solid #90caf9;border-radius:10px;cursor:pointer;transition:all .2s;min-width:200px;}
+.search-result-item:active{background:#bbdefb;transform:scale(0.98);}
+.search-result-item .s-code{font-size:12px;color:#1565c0;font-weight:700;font-family:monospace;}
+.search-result-item .s-name{font-size:13px;color:#222;flex:1;}
+.search-result-item .s-add{font-size:11px;color:#fff;padding:3px 10px;background:#4caf50;border-radius:12px;margin-left:auto;}
+.search-result-item .s-add.exist{background:#9e9e9e;color:#fff;}
 .tabs{display:flex;gap:5px;padding:6px 8px;background:#fff;border-bottom:1px solid #e8e8e8;flex-shrink:0;overflow-x:auto;white-space:nowrap;}
 .tab{padding:4px 10px;border-radius:12px;background:#f0f2f5;color:#555;font-size:11px;cursor:pointer;flex-shrink:0;}
 .tab.active{background:#1a237e;color:#fff;font-weight:600;}
@@ -774,7 +776,9 @@ document.getElementById('btn-search').onclick=function(){
       item.className='search-result-item';
       item.setAttribute('data-code', f.code);
       var exists=DATA.some(function(d){ return d.code===f.code; });
-      item.innerHTML='<span class="s-code">'+f.code+'</span><span class="s-name">'+(f.name||f.code)+'</span>'+(exists?'<span class="s-add">已在列表</span>':'<span class="s-add">点击添加</span>');
+      var addClass=exists?'exist':'';
+      var addText=exists?'已在列表':'点击添加';
+      item.innerHTML='<span class="s-code">'+f.code+'</span><span class="s-name">'+(f.name||f.code)+'</span><span class="s-add '+addClass+'">'+addText+'</span>';
       content.appendChild(item);
     });
     wrap.style.display='block';
