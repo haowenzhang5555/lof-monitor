@@ -443,15 +443,15 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 .title-bar .left-group{display:flex;align-items:center;gap:8px;}
 .version{color:#ffd54f;font-size:10px;font-weight:500;opacity:.85;}
 .list-name{color:#ffd54f;font-size:11px;font-weight:600;background:rgba(255,213,79,.18);padding:3px 10px;border-radius:12px;}
-.search-bar{display:flex;align-items:center;gap:6px;}
-.search-input{flex:1;max-width:240px;height:32px;padding:0 12px;border-radius:16px;border:none;font-size:13px;background:rgba(255,255,255,.96);color:#222;outline:none;}
-.btn{height:32px;padding:0 12px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;transition:transform .1s;}
+.search-bar{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0;}
+.search-input{flex:1;max-width:120px;height:28px;padding:0 10px;border-radius:14px;border:none;font-size:12px;background:rgba(255,255,255,.96);color:#222;outline:none;}
+.btn{height:28px;padding:0 10px;border-radius:14px;border:none;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:transform .1s;}
 .btn:active{transform:scale(.94);}
 .btn-search{background:#ffd54f;color:#1a237e;}
-.btn-refresh{background:rgba(255,255,255,.22);color:#fff;padding:0 10px;}
-.btn-auto{background:#4caf50;color:#fff;padding:0 8px;font-size:11px;border-radius:16px;}
+.btn-refresh{background:rgba(255,255,255,.22);color:#fff;padding:0 8px;}
+.btn-auto{background:#4caf50;color:#fff;padding:0 8px;font-size:10px;border-radius:14px;min-width:56px;}
 .btn-auto.on{background:#ff9800;}
-.refresh-select{height:32px;padding:0 6px;border:none;border-radius:10px;font-size:10px;background:rgba(255,255,255,.9);color:#333;outline:none;min-width:70px;}
+.refresh-select{height:28px;padding:0 6px;border:none;border-radius:10px;font-size:10px;background:rgba(255,255,255,.9);color:#333;outline:none;min-width:58px;}
 .search-results-wrap{background:#fff;border-bottom:2px solid #1976d2;padding:6px;box-shadow:0 2px 8px rgba(25,118,210,.15);}
 .search-results-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(135deg,#1976d2,#42a5f5);border-radius:8px;margin-bottom:8px;}
 .search-results-header span:first-child{color:#fff;font-size:13px;font-weight:600;}
@@ -498,6 +498,9 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 .tag.limit{background:#f57c00;color:#fff;}
 .tag.ok{background:#43a047;color:#fff;}
 .tag.est{background:#1976d2;color:#fff;font-size:9px;}
+.tag.srch{background:#ffd600;color:#6d4c00;font-size:9px;}
+.item.search-item{background:linear-gradient(90deg,#fff9e6 0%,#fff 8px,#fff 100%);}
+.item.search-item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#ffd600;}
 .data{display:flex;align-items:center;gap:8px;}
 .price-box{text-align:right;min-width:62px;}
 .price{font-size:13px;font-weight:700;color:#212121;}
@@ -577,7 +580,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 <body>
 <div id="app">
   <div class="header">
-    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.8.1</span></div><div class="list-name">__LIST_NAME__</div></div>
+    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.8.2</span></div><div class="list-name">__LIST_NAME__</div></div>
     <div class="search-bar">
       <input class="search-input" id="q" placeholder="输入基金代码或名称搜索" />
       <button class="btn btn-search" id="btn-search">搜索</button>
@@ -664,7 +667,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 </div>
 
 <script>
-var DATA=[], CUR_TAB='all', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null;
+var DATA=[], CUR_TAB='all', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null, SEARCH_CODES=[];
 var AUTO_REFRESH=false, REFRESH_INTERVAL=30, REFRESH_TIMER=null;
 
 try{ var favStr=localStorage.getItem('fav'); FAV=favStr?JSON.parse(favStr):[]; }catch(e){ FAV=[]; }
@@ -690,6 +693,10 @@ function render(){
   if(CUR_TAB==='lof') d=d.filter(function(f){ var c=f.code; return c.startsWith('16')||c.startsWith('501'); });
   if(CUR_TAB==='etf') d=d.filter(function(f){ var c=f.code; return c.startsWith('51')||c.startsWith('159')||c.startsWith('56')||c.startsWith('58'); });
   d.sort(function(a,b){
+    var aInSearch = SEARCH_CODES.indexOf(a.code)>-1;
+    var bInSearch = SEARCH_CODES.indexOf(b.code)>-1;
+    if(aInSearch && !bInSearch) return -1;
+    if(!aInSearch && bInSearch) return 1;
     var va, vb;
     if(SORT_KEY==='name') return a.name.localeCompare(b.name,'zh-CN')*(SORT_DIR==='asc'?1:-1);
     if(SORT_KEY==='code') return a.code.localeCompare(b.code)*(SORT_DIR==='asc'?1:-1);
@@ -717,14 +724,16 @@ function render(){
       var hasPrice=f.price>0;
       var hasNav=f.nav>0;
       var hasBoth=hasPrice&&hasNav;
+      var isSearch=SEARCH_CODES.indexOf(f.code)>-1;
       var row=document.createElement('div');
-      row.className='item'+(favOn?' fav-item':'');
+      row.className='item'+(favOn?' fav-item':'')+(isSearch?' search-item':'');
       row.setAttribute('data-code', f.code);
       var stTag=(f.status.indexOf('暂停')>-1?'stop':(f.status.indexOf('限')>-1?'limit':'ok'));
       var estTag=f.is_estimated?'<span class="tag est">估值</span>':'';
+      var searchTag=isSearch?'<span class="tag srch">搜索</span>':'';
       row.innerHTML =
         '<button class="fav-btn '+(favOn?'active':'')+'" data-code="'+f.code+'" data-act="fav">'+(favOn?'★':'☆')+'</button>'+
-        '<div class="info"><div class="name">'+f.name+'</div><div class="info-row"><span class="code">'+f.code+'</span><span class="tag '+stTag+'">'+f.status+'</span>'+estTag+'</div></div>'+
+        '<div class="info"><div class="name">'+f.name+'</div><div class="info-row"><span class="code">'+f.code+'</span>'+searchTag+'<span class="tag '+stTag+'">'+f.status+'</span>'+estTag+'</div></div>'+
         '<div class="data">'+
           '<div class="price-box"><div class="price nav '+(hasNav?'':'miss')+'">'+(hasNav?f.nav.toFixed(4):'--')+'</div><div class="pct '+numClass(f.pct_nav)+'">'+(hasNav?(f.pct_nav>0?'+':'')+f.pct_nav.toFixed(2)+'%':'--')+'</div></div>'+
           '<div class="price-box"><div class="price close '+(hasPrice?'':'miss')+'">'+(hasPrice?f.price.toFixed(4):'--')+'</div><div class="pct '+numClass(f.pct_price)+'">'+(hasPrice?(f.pct_price>0?'+':'')+f.pct_price.toFixed(2)+'%':'--')+'</div></div>'+
@@ -768,27 +777,24 @@ document.getElementById('btn-search').onclick=function(){
       toast('未找到匹配的基金');
       return;
     }
-    var wrap=document.getElementById('search-results-wrap');
-    var content=document.getElementById('search-results-content');
-    content.innerHTML='';
-    results.forEach(function(f){
-      var item=document.createElement('div');
-      item.className='search-result-item';
-      item.setAttribute('data-code', f.code);
-      var exists=DATA.some(function(d){ return d.code===f.code; });
-      var addClass=exists?'exist':'';
-      var addText=exists?'已在列表':'点击添加';
-      item.innerHTML='<span class="s-code">'+f.code+'</span><span class="s-name">'+(f.name||f.code)+'</span><span class="s-add '+addClass+'">'+addText+'</span>';
-      content.appendChild(item);
-    });
-    wrap.style.display='block';
-    toast('搜索到 '+results.length+' 只基金');
+    SEARCH_CODES=[];
+    var existingMap={};
+    for(var xi=0;xi<DATA.length;xi++){ existingMap[DATA[xi].code]=xi; }
+    for(var yj=0;yj<results.length;yj++){
+      var ff=results[yj];
+      SEARCH_CODES.push(ff.code);
+      var eidx=existingMap[ff.code];
+      if(eidx!==undefined){ DATA[eidx]=ff; }
+      else{ DATA.push(ff); }
+    }
+    render();
+    toast('搜索到 '+results.length+' 只基金，已在列表中置顶');
   }).catch(function(){ toast('搜索失败'); });
 };
 function clearSearch(){
   document.getElementById('q').value='';
-  document.getElementById('search-results-wrap').style.display='none';
-  document.getElementById('search-results-content').innerHTML='';
+  SEARCH_CODES=[];
+  render();
 }
 document.getElementById('clear-search').onclick=clearSearch;
 document.getElementById('q').addEventListener('keydown', function(e){
@@ -1078,10 +1084,18 @@ function drawDualChart(el, merged){
       ctx.fillStyle='#f57c00'; ctx.beginPath(); ctx.arc(crossX, py, 4, 0, Math.PI*2); ctx.fill();
     }
     // 显示悬浮框
+    var premHtml='';
+    if(navVal!==null && priceVal!==null){
+      var prem = ((priceVal - navVal) / navVal * 100);
+      var premSign = prem>0?'+':'';
+      var premColor = prem>0?'#ff5252':(prem<0?'#4caf50':'#bbb');
+      premHtml = '<div class="t-row" style="border-top:1px solid rgba(255,255,255,.15);padding-top:3px;margin-top:2px;"><span class="t-lbl" style="color:rgba(255,255,255,.75);">溢价率</span><span style="color:'+premColor+';font-weight:700;">'+premSign+prem.toFixed(2)+'%</span></div>';
+    }
     tooltip.innerHTML =
       '<div class="t-date">'+targetDate+'</div>'+
       (navVal!==null?'<div class="t-row"><span class="t-lbl">净值</span><span class="t-nav">'+navVal.toFixed(4)+'</span></div>':'')+
-      (priceVal!==null?'<div class="t-row"><span class="t-lbl">场内收盘</span><span class="t-price">'+priceVal.toFixed(4)+'</span></div>':'');
+      (priceVal!==null?'<div class="t-row"><span class="t-lbl">场内收盘</span><span class="t-price">'+priceVal.toFixed(4)+'</span></div>':'')+
+      premHtml;
     tooltip.style.display='block';
     var tipRect = tooltip.getBoundingClientRect();
     var tipW = tipRect.width, tipH = tipRect.height;
