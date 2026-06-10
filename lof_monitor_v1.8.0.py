@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# LOF基金监控 v1.9.1
+# LOF基金监控 v1.9.2
 
 import http.server
 import urllib.parse
@@ -112,6 +112,16 @@ def search_funds_online(keyword, limit=30):
     return matches
 
 
+def _cst_date(ts_ms):
+    try:
+        from datetime import datetime, timezone, timedelta
+        cst = timezone(timedelta(hours=8))
+        dt = datetime.fromtimestamp(int(ts_ms) / 1000, tz=cst)
+        return dt.strftime('%Y-%m-%d')
+    except Exception:
+        return time.strftime('%Y-%m-%d', time.localtime(int(ts_ms) / 1000))
+
+
 def fetch_fund_nav(code):
     nav = None
     pct_nav = 0.0
@@ -136,7 +146,7 @@ def fetch_fund_nav(code):
                     prev = arr[-2] if len(arr) > 1 else None
                     hist_nav_prev = float(prev.get('y')) if prev else hist_nav
                     ts = last.get('x', int(time.time() * 1000))
-                    hist_date = time.strftime('%Y-%m-%d', time.localtime(ts / 1000))
+                    hist_date = _cst_date(ts)
                     if nm:
                         name = nm.group(1)
         except Exception:
@@ -179,18 +189,17 @@ def fetch_fund_nav(code):
                         pass
         except Exception:
             pass
+    final_nav_date = jzrq_val or hist_date or gztime_val
     if dwjz_val is not None and gsz_nav is not None:
-        return {'nav': gsz_nav, 'nav_prev': dwjz_val, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val or jzrq_val, 'is_estimated': True}
-    if dwjz_val is not None and hist_nav is not None:
-        if abs(dwjz_val - hist_nav) / max(hist_nav, 0.0001) < 0.3:
-            return {'nav': round(hist_nav, 4), 'nav_prev': round(hist_nav_prev or hist_nav, 4), 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': hist_date, 'is_estimated': False}
-        return {'nav': dwjz_val, 'nav_prev': dwjz_val, 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': jzrq_val or hist_date, 'is_estimated': False}
+        return {'nav': gsz_nav, 'nav_prev': dwjz_val, 'pct_nav': gsz_pct, 'name': name, 'nav_date': final_nav_date, 'is_estimated': True, 'is_intraday': True}
     if dwjz_val is not None:
-        return {'nav': dwjz_val, 'nav_prev': dwjz_val, 'pct_nav': gsz_pct, 'name': name, 'nav_date': jzrq_val or gztime_val, 'is_estimated': False}
+        if hist_nav_prev is not None and abs(dwjz_val - hist_nav) / max(hist_nav, 0.0001) < 0.3:
+            return {'nav': dwjz_val, 'nav_prev': round(hist_nav_prev, 4), 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': final_nav_date, 'is_estimated': False, 'is_intraday': False}
+        return {'nav': dwjz_val, 'nav_prev': dwjz_val, 'pct_nav': gsz_pct or round(hist_pct, 2), 'name': name, 'nav_date': final_nav_date, 'is_estimated': False, 'is_intraday': False}
     if hist_nav is not None:
-        return {'nav': round(hist_nav, 4), 'nav_prev': round(hist_nav_prev or hist_nav, 4), 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': hist_date, 'is_estimated': False}
+        return {'nav': round(hist_nav, 4), 'nav_prev': round(hist_nav_prev or hist_nav, 4), 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': hist_date, 'is_estimated': False, 'is_intraday': False}
     if gsz_nav is not None:
-        return {'nav': gsz_nav, 'nav_prev': gsz_nav, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val, 'is_estimated': True}
+        return {'nav': gsz_nav, 'nav_prev': gsz_nav, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val, 'is_estimated': True, 'is_intraday': True}
     return None
 
 
@@ -255,29 +264,32 @@ def fetch_fund_status(code):
             return status
 
         compact = re.sub(r'\s+', '', plain)
-        ts_m = re.search(r'交易状态[:：]?(.{0,120}?)购买手续费', compact)
+        ts_m = re.search(r'交易状态[:：]?(.{0,150}?)购买手续费', compact)
         status_frag = ''
         if ts_m:
             status_frag = ts_m.group(1)
         if len(status_frag) < 2:
-            ts_m2 = re.search(r'交易状态[:：]?(.{0,80})', compact)
+            ts_m2 = re.search(r'交易状态[:：]?(.{0,100})', compact)
             if ts_m2:
                 status_frag = ts_m2.group(1)
         if len(status_frag) < 2:
             return status
 
-        if '暂停申购' in status_frag or '停止申购' in status_frag:
+        is_suspended = '暂停申购' in status_frag or '停止申购' in status_frag
+        is_limit_large = '限大额' in status_frag or '暂停大额申购' in status_frag or '大额限购' in status_frag
+
+        if is_suspended:
             status = '暂停申购'
-        elif '限大额' in status_frag or '暂停大额申购' in status_frag or '大额限购' in status_frag:
+        elif is_limit_large:
             status = '限大额'
-        elif '开放申购' in status_frag or '正常申购' in status_frag or '开放' in status_frag:
+        elif '开放申购' in status_frag or '正常申购' in status_frag:
             status = '正常申购'
 
         limit_m = re.search(r'单日累计购买上限(\d+(?:\.\d+)?)(万|亿|千|百|元)?', status_frag)
         if not limit_m:
-            limit_m = re.search(r'(?:购买上限|限额|限购|限大额|限)(\d+(?:\.\d+)?)(万|亿|千|百|元)?', status_frag)
+            limit_m = re.search(r'(?:购买上限|限额|限购|限)(\d+(?:\.\d+)?)(万|亿|千|百|元)?', status_frag)
 
-        if limit_m:
+        if limit_m and not is_suspended:
             try:
                 num = float(limit_m.group(1))
                 unit = ''
@@ -285,13 +297,17 @@ def fetch_fund_status(code):
                     unit = limit_m.group(2) or ''
                 except Exception:
                     unit = ''
-                if '亿' in unit:
+                if num <= 0:
+                    status = '暂停申购'
+                elif '亿' in unit:
                     status = '限%d亿' % int(num)
                 elif '万' in unit:
                     status = '限%d万' % int(num)
                 elif '千' in unit:
                     status = '限%d千' % int(num)
-                elif '元' in unit or unit == '':
+                elif '百' in unit:
+                    status = '限%d百' % int(num)
+                else:
                     if num >= 100000000:
                         status = '限%d亿' % int(num / 100000000)
                     elif num >= 10000:
@@ -299,7 +315,7 @@ def fetch_fund_status(code):
                     elif num >= 1000:
                         status = '限%d元' % int(num)
                     elif num > 0:
-                        status = '暂停申购'
+                        status = '限%d元' % int(num)
             except Exception:
                 pass
     except Exception:
@@ -352,7 +368,7 @@ def fetch_fund_history(code):
                 ts = item.get('x', 0)
                 y = float(item.get('y', 0))
                 pct = float(item.get('equityReturn', 0)) or 0.0
-                dt = time.strftime('%Y-%m-%d', time.localtime(ts / 1000))
+                dt = _cst_date(ts)
                 result.append({'date': dt, 'nav': y, 'pct': pct})
     except Exception:
         pass
@@ -597,7 +613,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 <body>
 <div id="app">
   <div class="header">
-    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.9.1</span></div><div class="list-name">__LIST_NAME__</div></div>
+    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.9.2</span></div><div class="list-name">__LIST_NAME__</div></div>
     <div class="search-bar">
       <input class="search-input" id="q" placeholder="输入基金代码或名称搜索" />
       <button class="btn btn-search" id="btn-search">搜索</button>
@@ -1315,7 +1331,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def main():
-    print('LOF基金监控 v1.9.1 启动, 端口 8888')
+    print('LOF基金监控 v1.9.2 启动, 端口 8888')
     try:
         http.server.HTTPServer(('0.0.0.0', 8888), Handler).serve_forever()
     except OSError:
