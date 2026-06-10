@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# LOF基金监控 v1.8.1
+# LOF基金监控 v1.9.0
 
 import http.server
 import urllib.parse
@@ -11,17 +11,26 @@ import threading
 import re
 
 SIM_DATA = [
-    {'code': '164205', 'name': '天弘文化新兴产业股票A', 'price': 4.4845, 'prev_close': 4.4845, 'nav': 4.2853, 'nav_prev': 4.26, 'status': '正常申购', 'pct_price': 0.0, 'pct_nav': 0.59, 'premium': 4.65, 'nav_date': '', 'is_estimated': False},
+    {'code': '501312', 'name': '华宝海外科技股票(QDII-LOF)A', 'price': 2.3250, 'prev_close': 2.30, 'nav': 2.3127, 'nav_prev': 2.29, 'status': '正常申购', 'pct_price': 1.57, 'pct_nav': 0.0, 'premium': 0.53, 'nav_date': '', 'is_estimated': True},
+    {'code': '161226', 'name': '国投瑞银白银期货(LOF)A', 'price': 2.0148, 'prev_close': 1.8838, 'nav': 1.8838, 'nav_prev': 1.8838, 'status': '正常申购', 'pct_price': 6.95, 'pct_nav': -0.46, 'premium': 6.96, 'nav_date': '', 'is_estimated': False},
+    {'code': '161128', 'name': '易方达标普信息科技指数(LOF)A', 'price': 7.0610, 'prev_close': 7.03, 'nav': 6.6242, 'nav_prev': 6.58, 'status': '正常申购', 'pct_price': 3.41, 'pct_nav': 0.11, 'premium': 6.59, 'nav_date': '', 'is_estimated': True},
+    {'code': '161129', 'name': '易方达原油A类人民币(QDII-LOF)A', 'price': 1.8430, 'prev_close': 1.83, 'nav': 1.7587, 'nav_prev': 1.73, 'status': '正常申购', 'pct_price': -7.11, 'pct_nav': 1.75, 'premium': 4.79, 'nav_date': '', 'is_estimated': True},
     {'code': '162703', 'name': '广发小盘成长混合(LOF)A', 'price': 2.3477, 'prev_close': 2.3477, 'nav': 2.2620, 'nav_prev': 2.25, 'status': '暂停申购', 'pct_price': 0.0, 'pct_nav': 0.53, 'premium': 3.79, 'nav_date': '', 'is_estimated': False},
     {'code': '501078', 'name': '广发科创主题灵活配置混合(LOF)', 'price': 3.0150, 'prev_close': 3.00, 'nav': 2.9271, 'nav_prev': 2.90, 'status': '限1000万', 'pct_price': 0.5, 'pct_nav': 0.93, 'premium': 3.0, 'nav_date': '', 'is_estimated': False},
-    {'code': '160706', 'name': '嘉实沪深300ETF联接A', 'price': 1.2267, 'prev_close': 1.22, 'nav': 2.2620, 'nav_prev': 1.19, 'status': '正常申购', 'pct_price': 0.55, 'pct_nav': 1.2, 'premium': 1.86, 'nav_date': '', 'is_estimated': False},
     {'code': '166009', 'name': '中欧新动力混合(LOF)A', 'price': 3.6063, 'prev_close': 3.58, 'nav': 3.5497, 'nav_prev': 3.52, 'status': '限50万', 'pct_price': 0.74, 'pct_nav': 0.84, 'premium': 1.59, 'nav_date': '', 'is_estimated': False},
-    {'code': '161226', 'name': '国投瑞银白银期货(LOF)A', 'price': 2.0148, 'prev_close': 1.8838, 'nav': 1.8838, 'nav_prev': 1.8838, 'status': '正常申购', 'pct_price': 6.95, 'pct_nav': -0.46, 'premium': 6.96, 'nav_date': '', 'is_estimated': False},
-    {'code': '159876', 'name': '华夏中证动漫游戏ETF', 'price': 0.8512, 'prev_close': 0.8598, 'nav': 0.8496, 'nav_prev': 0.855, 'status': '正常申购', 'pct_price': -1.0, 'pct_nav': -0.63, 'premium': 0.19, 'nav_date': '', 'is_estimated': False},
+    {'code': '164205', 'name': '天弘文化新兴产业股票A', 'price': 4.4845, 'prev_close': 4.4845, 'nav': 4.2853, 'nav_prev': 4.26, 'status': '正常申购', 'pct_price': 0.0, 'pct_nav': 0.59, 'premium': 4.65, 'nav_date': '', 'is_estimated': False},
+    {'code': '161725', 'name': '招商中证白酒指数(LOF)A', 'price': 1.0987, 'prev_close': 1.09, 'nav': 0.5480, 'nav_prev': 0.543, 'status': '限100万', 'pct_price': 0.8, 'pct_nav': 0.88, 'premium': 100.49, 'nav_date': '', 'is_estimated': False},
+    {'code': '160706', 'name': '嘉实沪深300ETF联接A(LOF)', 'price': 1.2267, 'prev_close': 1.22, 'nav': 1.2120, 'nav_prev': 1.198, 'status': '正常申购', 'pct_price': 0.55, 'pct_nav': 1.2, 'premium': 1.22, 'nav_date': '', 'is_estimated': False},
+    {'code': '162411', 'name': '华宝标普油气上游股票人民币A', 'price': 0.9135, 'prev_close': 0.908, 'nav': 0.8927, 'nav_prev': 0.885, 'status': '限50万', 'pct_price': 0.61, 'pct_nav': 0.87, 'premium': 2.33, 'nav_date': '', 'is_estimated': True},
+    {'code': '160213', 'name': '国泰纳斯达克100指数(QDII-LOF)', 'price': 5.2860, 'prev_close': 5.25, 'nav': 5.1234, 'nav_prev': 5.08, 'status': '限1000万', 'pct_price': 0.69, 'pct_nav': 0.85, 'premium': 3.17, 'nav_date': '', 'is_estimated': False},
+    {'code': '501018', 'name': '南方原油(QDII-LOF)A', 'price': 1.0872, 'prev_close': 1.08, 'nav': 1.0523, 'nav_prev': 1.04, 'status': '限2000万', 'pct_price': 0.67, 'pct_nav': 1.18, 'premium': 3.32, 'nav_date': '', 'is_estimated': False},
+    {'code': '163208', 'name': '诺安油气能源股票(QDII-LOF)A', 'price': 1.2845, 'prev_close': 1.278, 'nav': 1.2412, 'nav_prev': 1.23, 'status': '限100万', 'pct_price': 0.51, 'pct_nav': 0.91, 'premium': 3.49, 'nav_date': '', 'is_estimated': False},
+    {'code': '160416', 'name': '华安标普全球石油指数(LOF)A', 'price': 1.1563, 'prev_close': 1.15, 'nav': 1.1203, 'nav_prev': 1.11, 'status': '限100万', 'pct_price': 0.55, 'pct_nav': 0.93, 'premium': 3.21, 'nav_date': '', 'is_estimated': False},
+    {'code': '160717', 'name': '嘉实恒生中国企业指数(QDII-LOF)', 'price': 0.8921, 'prev_close': 0.888, 'nav': 0.8654, 'nav_prev': 0.86, 'status': '限大额', 'pct_price': 0.46, 'pct_nav': 0.63, 'premium': 3.08, 'nav_date': '', 'is_estimated': False},
     {'code': '513100', 'name': '国泰纳斯达克100ETF', 'price': 1.8653, 'prev_close': 1.85, 'nav': 1.8432, 'nav_prev': 1.83, 'status': '限500万', 'pct_price': 0.83, 'pct_nav': 0.72, 'premium': 1.2, 'nav_date': '', 'is_estimated': False},
     {'code': '510300', 'name': '华泰柏瑞沪深300ETF', 'price': 3.9856, 'prev_close': 3.96, 'nav': 3.9820, 'nav_prev': 3.95, 'status': '正常申购', 'pct_price': 0.65, 'pct_nav': 0.81, 'premium': 0.09, 'nav_date': '', 'is_estimated': False},
     {'code': '159995', 'name': '华夏国证半导体芯片ETF', 'price': 1.1234, 'prev_close': 1.11, 'nav': 1.1210, 'nav_prev': 1.115, 'status': '正常申购', 'pct_price': 1.21, 'pct_nav': 1.35, 'premium': 0.21, 'nav_date': '', 'is_estimated': False},
-    {'code': '161725', 'name': '招商中证白酒指数(LOF)A', 'price': 1.0987, 'prev_close': 1.09, 'nav': 1.0960, 'nav_prev': 1.092, 'status': '限100万', 'pct_price': 0.8, 'pct_nav': 0.88, 'premium': 0.25, 'nav_date': '', 'is_estimated': False},
+    {'code': '159876', 'name': '华夏中证动漫游戏ETF', 'price': 0.8512, 'prev_close': 0.8598, 'nav': 0.8496, 'nav_prev': 0.855, 'status': '正常申购', 'pct_price': -1.0, 'pct_nav': -0.63, 'premium': 0.19, 'nav_date': '', 'is_estimated': False},
 ]
 
 LIST_NAME = 'LOF/ETF精选基金列表'
@@ -109,8 +118,35 @@ def fetch_fund_nav(code):
     nav_prev = None
     name = ''
     nav_date = ''
-    text = _http_get('http://fundgz.1234567.com.cn/js/%s.js' % code, timeout=5)
     gsz_found = False
+    hist_nav = None
+    hist_nav_prev = None
+    hist_pct = 0.0
+    hist_date = ''
+    text = _http_get('http://fund.eastmoney.com/pingzhongdata/%s.js?v=%d' % (code, int(time.time())), timeout=8)
+    if text:
+        try:
+            m = re.search(r'Data_netWorthTrend\s*=\s*(\[.*?\]);', text, re.DOTALL)
+            nm = re.search(r'fS_name\s*=\s*"([^"]+)"', text)
+            if m:
+                arr = json.loads(m.group(1))
+                if arr and len(arr) > 0:
+                    last = arr[-1]
+                    hist_nav = float(last.get('y', 0))
+                    hist_pct = float(last.get('equityReturn', 0)) or 0.0
+                    prev = arr[-2] if len(arr) > 1 else None
+                    hist_nav_prev = float(prev.get('y')) if prev else hist_nav
+                    ts = last.get('x', int(time.time() * 1000))
+                    hist_date = time.strftime('%Y-%m-%d', time.localtime(ts / 1000))
+                    if nm:
+                        name = nm.group(1)
+        except Exception:
+            pass
+    text = _http_get('http://fundgz.1234567.com.cn/js/%s.js' % code, timeout=5)
+    gsz_nav = None
+    gsz_pct = 0.0
+    dwjz_val = None
+    gztime_val = ''
     if text:
         try:
             start = text.find('{')
@@ -120,49 +156,35 @@ def fetch_fund_nav(code):
                 gsz = d.get('gsz')
                 gszzl = d.get('gszzl')
                 dwjz = d.get('dwjz')
-                name = d.get('name', '')
-                gztime = d.get('gztime', '')
+                if not name:
+                    name = d.get('name', '')
+                gztime_val = d.get('gztime', '')
                 if gsz and gsz not in ('', 'null', 'None'):
                     try:
-                        nav = round(float(gsz), 4)
-                        nav_date = gztime
-                        gsz_found = True
+                        gsz_nav = round(float(gsz), 4)
                     except (ValueError, TypeError):
-                        nav = None
+                        pass
                 if gszzl and gszzl not in ('', 'null', 'None'):
                     try:
-                        pct_nav = round(float(gszzl), 2)
+                        gsz_pct = round(float(gszzl), 2)
                     except (ValueError, TypeError):
-                        pct_nav = 0.0
+                        gsz_pct = 0.0
                 if dwjz and dwjz not in ('', 'null', 'None'):
                     try:
-                        nav_prev = round(float(dwjz), 4)
+                        dwjz_val = round(float(dwjz), 4)
                     except (ValueError, TypeError):
-                        nav_prev = None
+                        pass
         except Exception:
             pass
-    if nav is not None:
-        return {'nav': nav, 'nav_prev': nav_prev or nav, 'pct_nav': pct_nav, 'name': name, 'nav_date': nav_date, 'is_estimated': gsz_found}
-    text = _http_get('http://fund.eastmoney.com/pingzhongdata/%s.js?v=%d' % (code, int(time.time())), timeout=6)
-    if not text:
-        return None
-    try:
-        m = re.search(r'Data_netWorthTrend\s*=\s*(\[.*?\]);', text, re.DOTALL)
-        if m:
-            arr = json.loads(m.group(1))
-            if arr and len(arr) > 0:
-                last = arr[-1]
-                nav = float(last.get('y', 0))
-                pct_nav = float(last.get('equityReturn', 0)) or 0.0
-                prev = arr[-2] if len(arr) > 1 else None
-                nav_prev = float(prev.get('y')) if prev else nav
-                ts = last.get('x', int(time.time() * 1000))
-                nav_date = time.strftime('%Y-%m-%d', time.localtime(ts / 1000))
-                nm = re.search(r'fS_name\s*=\s*"([^"]+)"', text)
-                name = nm.group(1) if nm else ''
-                return {'nav': round(nav, 4), 'nav_prev': round(nav_prev, 4), 'pct_nav': round(pct_nav, 2), 'name': name, 'nav_date': nav_date, 'is_estimated': False}
-    except Exception:
-        pass
+    if gsz_nav is not None and dwjz_val is not None:
+        if hist_nav is None or abs(dwjz_val - hist_nav) / max(hist_nav, 0.0001) < 0.15:
+            return {'nav': gsz_nav, 'nav_prev': dwjz_val, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val, 'is_estimated': True}
+    if gsz_nav is not None and hist_nav is not None and abs(gsz_nav - hist_nav) / max(hist_nav, 0.0001) < 0.15:
+        return {'nav': gsz_nav, 'nav_prev': hist_nav_prev or hist_nav, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val, 'is_estimated': True}
+    if hist_nav is not None:
+        return {'nav': round(hist_nav, 4), 'nav_prev': round(hist_nav_prev or hist_nav, 4), 'pct_nav': round(hist_pct, 2), 'name': name, 'nav_date': hist_date, 'is_estimated': False}
+    if gsz_nav is not None:
+        return {'nav': gsz_nav, 'nav_prev': dwjz_val or gsz_nav, 'pct_nav': gsz_pct, 'name': name, 'nav_date': gztime_val, 'is_estimated': True}
     return None
 
 
@@ -218,47 +240,59 @@ def _strip_html_tags(text):
 def fetch_fund_status(code):
     status = '正常申购'
     try:
-        text = _http_get('http://fundf10.eastmoney.com/jbxx_%s.html' % code, timeout=6)
+        url = 'http://fundf10.eastmoney.com/jjcz_%s.html' % code
+        text = _http_get(url, timeout=6)
+        if text and len(text) < 200:
+            text = _http_get('http://fundf10.eastmoney.com/jbxx_%s.html' % code, timeout=6)
         if not text:
             return status
-
         plain = _strip_html_tags(text)
+        if len(plain) < 50:
+            return status
 
-        sg_value = ''
-        sg_match = re.search(r'申购状态[\s:：]*([^\s\u3000]{1,20})', plain)
-        if not sg_match:
-            sg_match = re.search(r'(?:申购|开放申购|开放)[\s:：]*([^\s\u3000]{1,20}?)(?:申购|状态|赎回|$)', plain)
-        if sg_match:
-            sg_value = sg_match.group(1).strip()
-            sg_value = re.sub(r'[。，、；：].*$', '', sg_value)
-
-        limit_value = ''
+        stop_patterns = [
+            '暂停申购', '暂停(?!开放申购)', '封闭期',
+            '封闭运作', '停止申购', '停止',
+        ]
+        stop_hit = None
+        for pat in stop_patterns:
+            m = re.search(pat, plain)
+            if m:
+                stop_hit = pat
+                break
+        limit_hit = None
         limit_num = None
-        limit_keywords = ['限大额', '单日限额', '单用户限额', '单户限额', '大额申购', '限额', '限购']
-        for kw in limit_keywords:
-            pat = kw + r'[\s:：]*([^\s\u3000]{1,30})'
+        limit_pats = [
+            r'限大额', r'单日限额', r'暂停大额申购', r'大额限购',
+            r'单日申购\d+\.?\d*\s*(?:万|亿|元|千|百)?',
+            r'限额\d+\.?\d*\s*(?:万|亿|元|千|百)?',
+            r'限\d+\.?\d*\s*(?:万|亿|元|千|百)?',
+            r'限购\d+\.?\d*\s*(?:万|亿|元|千|百)?',
+        ]
+        for pat in limit_pats:
             lm = re.search(pat, plain)
             if lm:
-                limit_value = lm.group(1).strip()
-                limit_value = re.sub(r'[。，、；：].*$', '', limit_value)
-                num_match = re.search(r'(\d+(?:\.\d+)?)\s*(万|亿|元|千|百)?', limit_value)
+                limit_hit = lm.group(0)
+                num_match = re.search(r'(\d+(?:\.\d+)?)\s*(万|亿|元|千|百)?', limit_hit)
                 if num_match:
-                    num = float(num_match.group(1))
-                    unit = num_match.group(2) or ''
-                    if unit == '万':
-                        limit_num = int(num * 10000)
-                    elif unit == '亿':
-                        limit_num = int(num * 100000000)
-                    elif unit == '千':
-                        limit_num = int(num * 1000)
-                    else:
-                        try:
-                            limit_num = int(num)
-                        except Exception:
-                            limit_num = None
+                    try:
+                        num = float(num_match.group(1))
+                        unit = num_match.group(2) or ''
+                        if unit == '万':
+                            limit_num = int(num * 10000)
+                        elif unit == '亿':
+                            limit_num = int(num * 100000000)
+                        elif unit == '千':
+                            limit_num = int(num * 1000)
+                        elif unit:
+                            try:
+                                limit_num = int(num)
+                            except Exception:
+                                limit_num = None
+                    except Exception:
+                        limit_num = None
                 break
-
-        if '暂停' in sg_value or '停止' in sg_value or '封闭' in sg_value or sg_value == '暂停':
+        if stop_hit:
             status = '暂停申购'
         elif limit_num is not None:
             if limit_num >= 100000000:
@@ -277,12 +311,8 @@ def fetch_fund_status(code):
                 status = '限%d元' % limit_num
             else:
                 status = '限大额'
-        elif '限大额' in plain or '大额限购' in plain or '暂停大额' in plain:
+        elif limit_hit:
             status = '限大额'
-        elif '开放' in sg_value or '正常' in sg_value or sg_value == '' or '开放申购' in plain:
-            status = '正常申购'
-        elif sg_value:
-            status = sg_value[:10]
         else:
             status = '正常申购'
     except Exception:
@@ -580,7 +610,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 <body>
 <div id="app">
   <div class="header">
-    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.8.2</span></div><div class="list-name">__LIST_NAME__</div></div>
+    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.9.0</span></div><div class="list-name">__LIST_NAME__</div></div>
     <div class="search-bar">
       <input class="search-input" id="q" placeholder="输入基金代码或名称搜索" />
       <button class="btn btn-search" id="btn-search">搜索</button>
@@ -604,8 +634,8 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
     <div class="search-results-content" id="search-results-content"></div>
   </div>
   <div class="tabs" id="tabs">
-    <div class="tab active" data-t="all">全部</div>
-    <div class="tab" data-t="lof">LOF</div>
+    <div class="tab" data-t="all">全部</div>
+    <div class="tab active" data-t="lof">LOF</div>
     <div class="tab" data-t="etf">ETF</div>
     <div class="tab" data-t="fav">自选</div>
     <div class="tab" data-t="high">高溢价</div>
@@ -667,7 +697,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 </div>
 
 <script>
-var DATA=[], CUR_TAB='all', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null, SEARCH_CODES=[];
+var DATA=[], CUR_TAB='lof', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null, SEARCH_CODES=[];
 var AUTO_REFRESH=false, REFRESH_INTERVAL=30, REFRESH_TIMER=null;
 
 try{ var favStr=localStorage.getItem('fav'); FAV=favStr?JSON.parse(favStr):[]; }catch(e){ FAV=[]; }
@@ -1298,7 +1328,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def main():
-    print('LOF基金监控 v1.8.0 启动, 端口 8888')
+    print('LOF基金监控 v1.9.0 启动, 端口 8888')
     try:
         http.server.HTTPServer(('0.0.0.0', 8888), Handler).serve_forever()
     except OSError:
