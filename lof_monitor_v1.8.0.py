@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# LOF基金监控 v1.9.2
+# LOF基金监控 v1.9.3
 
 import http.server
 import urllib.parse
@@ -631,7 +631,7 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 <body>
 <div id="app">
   <div class="header">
-    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.9.2</span></div><div class="list-name">__LIST_NAME__</div></div>
+    <div class="title-bar"><div class="left-group"><div class="title">LOF基金监控</div><span class="version">v1.9.3</span></div><div class="list-name">__LIST_NAME__</div></div>
     <div class="search-bar">
       <input class="search-input" id="q" placeholder="输入基金代码或名称搜索" />
       <button class="btn btn-search" id="btn-search">搜索</button>
@@ -718,16 +718,21 @@ html,body{height:100%;font-family:-apple-system,Helvetica,"PingFang SC",Microsof
 </div>
 
 <script>
-var DATA=[], CUR_TAB='lof', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null, SEARCH_CODES=[];
+var DATA=[], CUR_TAB='lof', FAV=[], SORT_KEY='premium', SORT_DIR='desc', CUR_CODE=null, SEARCH_CODES=[], CUSTOM_CODES=[], DELETED_CODES=[];
 var AUTO_REFRESH=false, REFRESH_INTERVAL=30, REFRESH_TIMER=null;
 
 try{ var favStr=localStorage.getItem('fav'); FAV=favStr?JSON.parse(favStr):[]; }catch(e){ FAV=[]; }
 try{ var autoStr=localStorage.getItem('autoRefresh'); AUTO_REFRESH=autoStr==='true'; }catch(e){}
 try{ var intervalStr=localStorage.getItem('refreshInterval'); REFRESH_INTERVAL=parseInt(intervalStr)||30; }catch(e){}
+try{ var customStr=localStorage.getItem('customFunds'); CUSTOM_CODES=customStr?JSON.parse(customStr):[]; }catch(e){ CUSTOM_CODES=[]; }
+try{ var deletedStr=localStorage.getItem('deletedFunds'); DELETED_CODES=deletedStr?JSON.parse(deletedStr):[]; }catch(e){ DELETED_CODES=[]; }
 var saveFav=function(){ localStorage.setItem('fav', JSON.stringify(FAV)); };
 var saveAutoRefresh=function(){ localStorage.setItem('autoRefresh', AUTO_REFRESH?'true':'false'); };
 var saveRefreshInterval=function(){ localStorage.setItem('refreshInterval', REFRESH_INTERVAL.toString()); };
+var saveCustomCodes=function(){ localStorage.setItem('customFunds', JSON.stringify(CUSTOM_CODES)); };
+var saveDeletedCodes=function(){ localStorage.setItem('deletedFunds', JSON.stringify(DELETED_CODES)); };
 var isFav=function(c){ return FAV.indexOf(c)>-1; };
+var isDeleted=function(c){ return DELETED_CODES.indexOf(c)>-1; };
 
 function toast(msg){
   var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
@@ -837,9 +842,13 @@ document.getElementById('btn-search').onclick=function(){
       var eidx=existingMap[ff.code];
       if(eidx!==undefined){ DATA[eidx]=ff; }
       else{ DATA.push(ff); }
+      if(CUSTOM_CODES.indexOf(ff.code)===-1){
+        CUSTOM_CODES.push(ff.code);
+      }
     }
+    saveCustomCodes();
     render();
-    toast('搜索到 '+results.length+' 只基金，已在列表中置顶');
+    toast('搜索到 '+results.length+' 只基金，已保存');
   }).catch(function(){ toast('搜索失败'); });
 };
 function clearSearch(){
@@ -978,7 +987,13 @@ document.getElementById('m-add').onclick=function(){
 document.getElementById('m-del').onclick=function(){
   if(!CUR_CODE) return;
   DATA=DATA.filter(function(f){ return f.code!==CUR_CODE; });
+  var cidx=CUSTOM_CODES.indexOf(CUR_CODE);
+  if(cidx>-1){ CUSTOM_CODES.splice(cidx,1); saveCustomCodes(); }
   if(isFav(CUR_CODE)){ FAV.splice(FAV.indexOf(CUR_CODE),1); saveFav(); }
+  if(DELETED_CODES.indexOf(CUR_CODE)===-1){
+    DELETED_CODES.push(CUR_CODE);
+    saveDeletedCodes();
+  }
   toast('已删除该基金');
   closeModal(); render();
 };
@@ -1184,6 +1199,7 @@ async function load(q, isSearch, refreshCode){
       var updated=0, added=0;
       for(var j=0;j<data.length;j++){
         var f=data[j];
+        if(isDeleted(f.code)) continue;
         var idx=existingMap[f.code];
         if(idx!==undefined){
           DATA[idx]=f;
@@ -1197,6 +1213,25 @@ async function load(q, isSearch, refreshCode){
       toast(isSearch&&q?('搜索到 '+data.length+' 只，新增 '+added+' 只，更新 '+updated+' 只'):('刷新完成，共 '+DATA.length+' 只'));
     } else {
       toast(isSearch&&q?'未找到匹配基金':'暂无数据');
+    }
+    if(CUSTOM_CODES.length>0 && !q){
+      for(var ci=0;ci<CUSTOM_CODES.length;ci++){
+        var code=CUSTOM_CODES[ci];
+        if(isDeleted(code)) continue;
+        var found=false;
+        for(var di=0;di<DATA.length;di++){
+          if(DATA[di].code===code){ found=true; break; }
+        }
+        if(!found){
+          try{
+            var rr=await fetch('/api/search?q='+encodeURIComponent(code));
+            var dd=await rr.json();
+            if(dd && dd.length>0){
+              DATA.push(dd[0]);
+            }
+          }catch(e){}
+        }
+      }
     }
     render();
     if(refreshCode){ openDetail(refreshCode); }
@@ -1350,7 +1385,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 def main():
-    print('LOF基金监控 v1.9.2 启动, 端口 8888')
+    print('LOF基金监控 v1.9.3 启动, 端口 8888')
     try:
         http.server.HTTPServer(('0.0.0.0', 8888), Handler).serve_forever()
     except OSError:
