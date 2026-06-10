@@ -1297,7 +1297,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         if self.path.startswith('/api/list'):
-            self._send_json(SIM_DATA)
+            results = []
+            for b in SIM_DATA:
+                try:
+                    results.append(enrich_fund(b))
+                except Exception:
+                    results.append({'code': b.get('code', ''), 'name': b.get('name', ''), 'price': 0.0, 'nav': 0.0, 'pct_price': 0.0, 'pct_nav': 0.0, 'premium': 0.0, 'status': '正常申购', 'nav_date': '', 'is_estimated': False})
+            self._send_json(results)
             return
 
         if self.path.startswith('/api/search'):
