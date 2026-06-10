@@ -355,6 +355,24 @@ def enrich_fund(basic):
     return result
 
 
+def enrich_fund_batch(basics, max_workers=8):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results = []
+    def worker(basic):
+        try:
+            return enrich_fund(basic)
+        except Exception:
+            code = basic.get('code', '')
+            name = basic.get('name', '') or code
+            return {'code': code, 'name': name, 'price': 0.0, 'nav': 0.0, 'pct_price': 0.0, 'pct_nav': 0.0, 'premium': 0.0, 'status': '正常申购', 'nav_date': '', 'is_estimated': False}
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(worker, b): b for b in basics}
+        for future in as_completed(futures):
+            results.append(future.result())
+    return results
+
+
 def fetch_fund_history(code):
     result = []
     text = _http_get('http://fund.eastmoney.com/pingzhongdata/%s.js?v=%d' % (code, int(time.time())), timeout=10)
@@ -1297,12 +1315,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         if self.path.startswith('/api/list'):
-            results = []
-            for b in SIM_DATA:
-                try:
-                    results.append(enrich_fund(b))
-                except Exception:
-                    results.append({'code': b.get('code', ''), 'name': b.get('name', ''), 'price': 0.0, 'nav': 0.0, 'pct_price': 0.0, 'pct_nav': 0.0, 'premium': 0.0, 'status': '正常申购', 'nav_date': '', 'is_estimated': False})
+            results = enrich_fund_batch(SIM_DATA, max_workers=8)
             self._send_json(results)
             return
 
